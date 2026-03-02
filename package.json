@@ -1,0 +1,17 @@
+{
+  "name": "deaddrop",
+  "private": true,
+  "scripts": {
+    "setup": "npm install --prefix frontend/app && dotnet restore backend/DeadDrop.Api",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "npm run dev --prefix frontend/app",
+    "dev:backend": "dotnet run --project backend/DeadDrop.Api",
+    "build:frontend": "npm run build --prefix frontend/app",
+    "build:backend": "dotnet build backend/DeadDrop.Api",
+    "db:migrate": "dotnet ef database update --project backend/DeadDrop.Api",
+    "db:migration": "dotnet ef migrations add --project backend/DeadDrop.Api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

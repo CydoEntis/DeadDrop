@@ -1,0 +1,62 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vs/
+.vscode/
+*.suo
+*.user
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+
+# .NET build artifacts
+bin/
+obj/
+backend/publish/
+
+# Frontend build output
+frontend/app/dist/
+
+# Logs
+backend/DeadDrop.Api/logs/
+
+# Secrets - never commit
+*.secrets.json
+.env
+.env.local
+.env.*.local
+
+# Deployment config (contains secrets)
+shiphound.yaml
+
+# Screenshot tool config (contains credentials)
+pawprint.config.json
+
+# Claude Code
+.claude/
+
+# Markdown docs (keep README only)
+*.md
+!README.md
+
+# TUS upload temp data
+droplink-data/
+
+# Avatar uploads
+wwwroot/avatars/
+
+# Old PupDrive screenshots
+screenshots/
+
+# IDE/tool configs
+.cursorrules
+.cta.json
+
+# Misc
+nul

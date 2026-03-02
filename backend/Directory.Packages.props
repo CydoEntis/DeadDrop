@@ -1,0 +1,42 @@
+﻿<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Core -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.11" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+    <!-- Auth -->
+    <PackageVersion Include="Pawthorize" Version="1.0.0" />
+    <PackageVersion Include="BCrypt.Net-Next" Version="4.0.3" />
+    <!-- Validation & Errors -->
+    <PackageVersion Include="FluentValidation" Version="11.9.0" />
+    <PackageVersion Include="ErrorHound" Version="2.0.0" />
+    <!-- Success Responses -->
+    <PackageVersion Include="StashPup.AspNetCore" Version="1.0.0" />
+    <PackageVersion Include="StashPup.Core" Version="1.0.0" />
+    <PackageVersion Include="StashPup.Storage.Local" Version="1.0.0" />
+    <PackageVersion Include="StashPup.Storage.S3" Version="1.0.1" />
+    <PackageVersion Include="StashPup.Storage.Azure" Version="1.0.0" />
+    <PackageVersion Include="SuccessHound" Version="2.0.0" />
+    <PackageVersion Include="SuccessHound.AspNetExtensions" Version="2.0.0" />
+    <PackageVersion Include="SuccessHound.Pagination" Version="2.0.0" />
+    <!-- Logging -->
+    <PackageVersion Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageVersion Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageVersion Include="Serilog.Enrichers.Thread" Version="4.0.0" />
+    <!-- Email -->
+    <PackageVersion Include="Resend" Version="0.2.1" />
+    <!-- Health Checks -->
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="8.0.11" />
+    <!-- Tooling -->
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="8.0.21" />
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <!-- DropLink -->
+    <PackageVersion Include="tusdotnet" Version="2.9.0" />
+  </ItemGroup>
+</Project>

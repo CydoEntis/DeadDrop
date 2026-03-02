@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>DeadDrop</RootNamespace>
+      <UserSecretsId>73549df3-07f9-4f6f-a050-fbc0bc67c1a6</UserSecretsId>
+  </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="ErrorHound" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+
+        <PackageReference Include="StashPup.AspNetCore" />
+        <PackageReference Include="StashPup.Core" />
+        <PackageReference Include="StashPup.Storage.Local" />
+        <PackageReference Include="StashPup.Storage.S3" />
+        <PackageReference Include="StashPup.Storage.Azure" />
+        <PackageReference Include="SuccessHound" />
+        <PackageReference Include="SuccessHound.AspNetExtensions" />
+        <PackageReference Include="SuccessHound.Pagination" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+        <PackageReference Include="Swashbuckle.AspNetCore" />
+        <PackageReference Include="Pawthorize" />
+        <PackageReference Include="Serilog.AspNetCore" />
+        <PackageReference Include="Serilog.Sinks.Console" />
+        <PackageReference Include="Serilog.Sinks.File" />
+        <PackageReference Include="Serilog.Enrichers.Environment" />
+        <PackageReference Include="Serilog.Enrichers.Thread" />
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+        <PackageReference Include="tusdotnet" />
+        <PackageReference Include="BCrypt.Net-Next" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Domain\" />
+        <Folder Include="Endpoints\" />
+    </ItemGroup>
+
+
+</Project>

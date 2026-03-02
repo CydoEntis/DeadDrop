@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.25rem;
+  --background: #0a0e17;
+  --foreground: #c8ccd4;
+  --card: #111827;
+  --card-foreground: #c8ccd4;
+  --popover: #111827;
+  --popover-foreground: #c8ccd4;
+  --primary: #00d4aa;
+  --primary-foreground: #0a0e17;
+  --secondary: #1a2332;
+  --secondary-foreground: #c8ccd4;
+  --muted: #151d2b;
+  --muted-foreground: #6b7280;
+  --accent: #1a2332;
+  --accent-foreground: #c8ccd4;
+  --destructive: #ff4444;
+  --destructive-foreground: #ffffff;
+  --border: #1e2a3a;
+  --input: #1a2332;
+  --ring: #00d4aa;
+  --chart-1: #00d4aa;
+  --chart-2: #00b894;
+  --chart-3: #009e7e;
+  --chart-4: #008568;
+  --chart-5: #006b52;
+  --sidebar: #0d1117;
+  --sidebar-foreground: #c8ccd4;
+  --sidebar-primary: #00d4aa;
+  --sidebar-primary-foreground: #0a0e17;
+  --sidebar-accent: #1a2332;
+  --sidebar-accent-foreground: #c8ccd4;
+  --sidebar-border: #1e2a3a;
+  --sidebar-ring: #00d4aa;
+}
+
+.dark {
+  --background: #0a0e17;
+  --foreground: #c8ccd4;
+  --card: #111827;
+  --card-foreground: #c8ccd4;
+  --popover: #111827;
+  --popover-foreground: #c8ccd4;
+  --primary: #00d4aa;
+  --primary-foreground: #0a0e17;
+  --secondary: #1a2332;
+  --secondary-foreground: #c8ccd4;
+  --muted: #151d2b;
+  --muted-foreground: #6b7280;
+  --accent: #1a2332;
+  --accent-foreground: #c8ccd4;
+  --destructive: #ff4444;
+  --destructive-foreground: #ffffff;
+  --border: #1e2a3a;
+  --input: #1a2332;
+  --ring: #00d4aa;
+  --chart-1: #00d4aa;
+  --chart-2: #00b894;
+  --chart-3: #009e7e;
+  --chart-4: #008568;
+  --chart-5: #006b52;
+  --sidebar: #0d1117;
+  --sidebar-foreground: #c8ccd4;
+  --sidebar-primary: #00d4aa;
+  --sidebar-primary-foreground: #0a0e17;
+  --sidebar-accent: #1a2332;
+  --sidebar-accent-foreground: #c8ccd4;
+  --sidebar-border: #1e2a3a;
+  --sidebar-ring: #00d4aa;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground m-0;
+    font-family: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 13px;
+  }
+  input, textarea, select {
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .normal-case {
+    text-transform: none;
+    letter-spacing: normal;
+  }
+}
