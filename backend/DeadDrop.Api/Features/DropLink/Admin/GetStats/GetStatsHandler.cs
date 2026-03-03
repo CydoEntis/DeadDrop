@@ -23,7 +23,7 @@ public class GetStatsHandler
             .SumAsync(d => d.SizeBytes ?? 0);
 
         var activeDrops = await _db.Drops
-            .CountAsync(d => d.Status == DropStatus.Ready && d.ExpiresAt > now);
+            .CountAsync(d => d.Status == DropStatus.Ready && (!d.ExpiresAt.HasValue || d.ExpiresAt > now));
 
         var downloads24h = await _db.DownloadEvents
             .CountAsync(e => e.WasSuccess && e.StartedAt > now.AddHours(-24));

@@ -40,7 +40,7 @@ public class DownloadDropHandler
         if (drop.Status != DropStatus.Ready)
             throw new BadRequestError(DropLinkErrorMessages.DropNotReady);
 
-        if (drop.ExpiresAt < DateTime.UtcNow)
+        if (drop.ExpiresAt.HasValue && drop.ExpiresAt < DateTime.UtcNow)
             throw new NotFoundError(DropLinkErrorMessages.DropExpired);
 
         if (drop.DeleteAfterDownloads > 0 && drop.DownloadCount >= drop.DeleteAfterDownloads)

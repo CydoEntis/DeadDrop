@@ -27,7 +27,7 @@ public class GetDropMetadataHandler
         if (drop.Status == DropStatus.Deleted || drop.Status == DropStatus.Deleting)
             throw new NotFoundError(DropLinkErrorMessages.DropDeleted);
 
-        if (drop.Status == DropStatus.Expired || drop.ExpiresAt < DateTime.UtcNow)
+        if (drop.Status == DropStatus.Expired || (drop.ExpiresAt.HasValue && drop.ExpiresAt < DateTime.UtcNow))
             throw new NotFoundError(DropLinkErrorMessages.DropExpired);
 
         if (drop.DeleteAfterDownloads > 0 && drop.DownloadCount >= drop.DeleteAfterDownloads)
