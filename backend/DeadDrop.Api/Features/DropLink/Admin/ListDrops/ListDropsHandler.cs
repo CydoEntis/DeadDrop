@@ -14,7 +14,7 @@ public class ListDropsHandler
         _db = db;
     }
 
-    public async Task<object> ExecuteAsync(int page, int pageSize, string? statusFilter)
+    public async Task<object> ExecuteAsync(int page, int pageSize, string? statusFilter, string? searchTerm)
     {
         var query = _db.Drops
             .Include(d => d.InviteCode)
@@ -23,6 +23,14 @@ public class ListDropsHandler
         if (!string.IsNullOrWhiteSpace(statusFilter) && Enum.TryParse<DropStatus>(statusFilter, true, out var status))
         {
             query = query.Where(d => d.Status == status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.ToLower();
+            query = query.Where(d =>
+                d.OriginalFilename.ToLower().Contains(term) ||
+                d.InviteCode.Label.ToLower().Contains(term));
         }
 
         query = query.OrderByDescending(d => d.CreatedAt);
