@@ -23,7 +23,7 @@ export interface CreateDropRequest {
 export interface CreateDropResponse {
   publicId: string;
   dropId: string;
-  expiresAt: string;
+  ttlSeconds: number;
   upload: {
     protocol: string;
     endpoint: string;
@@ -35,7 +35,7 @@ export interface DropMetadataResponse {
   status: string;
   originalFilename: string;
   sizeBytes: number | null;
-  expiresAt: string;
+  expiresAt: string | null;
   requiresPassword: boolean;
   downloadCount: number;
   deleteAfterDownloads: number;
@@ -81,7 +81,7 @@ export interface AdminDropResponse {
   originalFilename: string;
   sizeBytes: number | null;
   createdAt: string;
-  expiresAt: string;
+  expiresAt: string | null;
   downloadCount: number;
   deleteAfterDownloads: number;
   inviteCodeLabel: string;

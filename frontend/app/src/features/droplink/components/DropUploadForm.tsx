@@ -87,7 +87,7 @@ export function DropUploadForm({
     try {
       const response = await createDrop.mutateAsync({
         inviteCode,
-        ttlSeconds: 1800,
+        ttlSeconds: 604800, // 7 days
         password: usePassword ? password : undefined,
         deleteAfterDownloads: 1,
         originalFilename: file.name,
@@ -226,7 +226,7 @@ export function DropUploadForm({
       </div>
 
       <p className="text-xs text-muted-foreground/50 text-center normal-case">
-        File will self-destruct after 1 download or 30 minutes.
+        File will self-destruct after 1 download or 7 days.
       </p>
 
       {/* Deploy Button */}

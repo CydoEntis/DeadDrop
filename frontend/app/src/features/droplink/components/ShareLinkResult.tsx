@@ -14,7 +14,9 @@ export function ShareLinkResult({
   hasPassword,
 }: ShareLinkResultProps) {
   const [copied, setCopied] = useState(false);
-  const { timeLeft } = useExpiryCountdown(dropResponse.expiresAt);
+  // TTL starts when upload completes (now), compute expiresAt client-side
+  const expiresAt = new Date(Date.now() + dropResponse.ttlSeconds * 1000).toISOString();
+  const { timeLeft } = useExpiryCountdown(expiresAt);
 
   const shareUrl = `${window.location.origin}/d/${dropResponse.publicId}`;
 

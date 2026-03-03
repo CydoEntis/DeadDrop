@@ -1,4 +1,4 @@
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, X } from "lucide-react";
 
 interface UploadProgressProps {
   filename: string;
@@ -31,6 +31,7 @@ export function UploadProgress({
   speed,
   error,
   isUploading,
+  onAbort,
 }: UploadProgressProps) {
   return (
     <div className="w-full max-w-lg mx-auto space-y-6">
@@ -76,6 +77,14 @@ export function UploadProgress({
             <span className="normal-case">{error}</span>
           </div>
         )}
+
+        <button
+          onClick={onAbort}
+          className="w-full px-4 py-2.5 text-xs font-medium border border-border rounded hover:bg-destructive/10 hover:border-destructive hover:text-destructive transition-colors flex items-center justify-center gap-2"
+        >
+          <X className="h-3.5 w-3.5" />
+          Cancel transfer
+        </button>
       </div>
     </div>
   );

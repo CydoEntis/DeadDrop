@@ -2,6 +2,40 @@ import { useState, useCallback, useRef } from "react";
 import * as tus from "tus-js-client";
 import type { CreateDropResponse } from "../types";
 
+function parseTusError(err: Error): string {
+  const msg = err.message || "";
+
+  // 413 — file too large
+  if (msg.includes("413"))
+    return "File exceeds the maximum allowed size. Try a smaller file.";
+
+  // Server rejected with a reason in the response text
+  if (msg.includes("exceeded") || msg.includes("too large") || msg.includes("UploadTooLarge"))
+    return "File exceeds the maximum allowed size. Try a smaller file.";
+  if (msg.includes("storage limit") || msg.includes("StorageLimitReached"))
+    return "This invite code has reached its storage limit.";
+  if (msg.includes("disk space"))
+    return "Server is out of disk space. Contact the operator.";
+  if (msg.includes("revoked"))
+    return "This invite code has been revoked.";
+  if (msg.includes("not found") || msg.includes("NotFound"))
+    return "Drop not found. The link may have expired.";
+  if (msg.includes("not in a valid state"))
+    return "This drop is no longer accepting uploads.";
+
+  // Network errors
+  if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("ERR_CONNECTION"))
+    return "Network error. Check your connection and try again.";
+  if (msg.includes("timeout") || msg.includes("Timeout"))
+    return "Upload timed out. Check your connection and try again.";
+
+  // Fallback — strip the TUS protocol noise
+  if (msg.includes("tus:"))
+    return "Upload failed. Please try again.";
+
+  return msg || "Upload failed";
+}
+
 interface UseDropUploadOptions {
   onComplete?: () => void;
   onError?: (error: Error) => void;
@@ -64,8 +98,9 @@ export function useDropUpload(options?: UseDropUploadOptions) {
         },
         onError: (err: Error) => {
           setIsUploading(false);
-          setError(err.message || "Upload failed");
-          options?.onError?.(err);
+          const friendly = parseTusError(err);
+          setError(friendly);
+          options?.onError?.(new Error(friendly));
         },
       });
 
