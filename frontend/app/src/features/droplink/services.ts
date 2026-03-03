@@ -62,11 +62,16 @@ export const dropLinkAdminService = {
 
   async listInviteCodes(
     page = 1,
-    pageSize = 20
+    pageSize = 20,
+    searchTerm?: string,
+    status?: string,
+    sortBy?: string
   ): Promise<PaginatedResponse<InviteCodeResponse>> {
-    const response = await apiClient.get(
-      `${adminPrefix}/invites?page=${page}&pageSize=${pageSize}`
-    );
+    let url = `${adminPrefix}/invites?page=${page}&pageSize=${pageSize}`;
+    if (searchTerm) url += `&searchTerm=${encodeURIComponent(searchTerm)}`;
+    if (status) url += `&status=${encodeURIComponent(status)}`;
+    if (sortBy) url += `&sortBy=${encodeURIComponent(sortBy)}`;
+    const response = await apiClient.get(url);
     const data = response.data.data ?? response.data;
     return {
       data: data.data ?? data,
@@ -94,10 +99,12 @@ export const dropLinkAdminService = {
   async listDrops(
     page = 1,
     pageSize = 20,
-    status?: string
+    status?: string,
+    searchTerm?: string
   ): Promise<PaginatedResponse<AdminDropResponse>> {
     let url = `${adminPrefix}/drops?page=${page}&pageSize=${pageSize}`;
     if (status) url += `&status=${status}`;
+    if (searchTerm) url += `&searchTerm=${encodeURIComponent(searchTerm)}`;
     const response = await apiClient.get(url);
     const data = response.data.data ?? response.data;
     return {

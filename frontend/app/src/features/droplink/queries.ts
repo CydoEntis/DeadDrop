@@ -17,11 +17,11 @@ export const dropLinkKeys = {
 export const dropLinkAdminKeys = {
   all: ["droplink-admin"] as const,
   invites: () => [...dropLinkAdminKeys.all, "invites"] as const,
-  inviteList: (page: number) =>
-    [...dropLinkAdminKeys.invites(), page] as const,
+  inviteList: (page: number, searchTerm?: string, status?: string, sortBy?: string) =>
+    [...dropLinkAdminKeys.invites(), page, searchTerm, status, sortBy] as const,
   drops: () => [...dropLinkAdminKeys.all, "drops"] as const,
-  dropList: (page: number, status?: string) =>
-    [...dropLinkAdminKeys.drops(), page, status] as const,
+  dropList: (page: number, status?: string, searchTerm?: string) =>
+    [...dropLinkAdminKeys.drops(), page, status, searchTerm] as const,
   stats: () => [...dropLinkAdminKeys.all, "stats"] as const,
 };
 
@@ -75,10 +75,10 @@ export function useCreateInviteCode() {
   });
 }
 
-export function useAdminInviteCodes(page = 1, pageSize = 20) {
+export function useAdminInviteCodes(page = 1, pageSize = 20, searchTerm?: string, status?: string, sortBy?: string) {
   return useQuery({
-    queryKey: dropLinkAdminKeys.inviteList(page),
-    queryFn: () => dropLinkAdminService.listInviteCodes(page, pageSize),
+    queryKey: dropLinkAdminKeys.inviteList(page, searchTerm, status, sortBy),
+    queryFn: () => dropLinkAdminService.listInviteCodes(page, pageSize, searchTerm, status, sortBy),
     placeholderData: keepPreviousData,
   });
 }
@@ -126,10 +126,10 @@ export function useDeleteDrop() {
   });
 }
 
-export function useAdminDrops(page = 1, pageSize = 20, status?: string) {
+export function useAdminDrops(page = 1, pageSize = 20, status?: string, searchTerm?: string) {
   return useQuery({
-    queryKey: dropLinkAdminKeys.dropList(page, status),
-    queryFn: () => dropLinkAdminService.listDrops(page, pageSize, status),
+    queryKey: dropLinkAdminKeys.dropList(page, status, searchTerm),
+    queryFn: () => dropLinkAdminService.listDrops(page, pageSize, status, searchTerm),
     placeholderData: keepPreviousData,
   });
 }

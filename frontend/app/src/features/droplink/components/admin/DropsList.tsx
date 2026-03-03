@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ExternalLink, Loader2, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ExternalLink, Loader2, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminDrops, useDeleteDrop } from "../../queries";
 import { DROP_STATUS } from "../../constants";
@@ -28,15 +28,43 @@ const statusColor = (status: string) => {
   }
 };
 
+const statusDotColor = (status: string) => {
+  switch (status) {
+    case DROP_STATUS.READY:
+      return "bg-emerald-400";
+    case DROP_STATUS.UPLOADING:
+    case DROP_STATUS.CREATED:
+      return "bg-yellow-400";
+    case DROP_STATUS.DELETED:
+    case DROP_STATUS.EXPIRED:
+    case DROP_STATUS.FAILED:
+      return "bg-destructive";
+    default:
+      return "bg-muted-foreground";
+  }
+};
+
 export function DropsList() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState<string | undefined>();
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSearchTerm(searchInput || undefined);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
+
   const { data, isLoading } = useAdminDrops(
     page,
     20,
-    statusFilter === "all" ? undefined : statusFilter
+    statusFilter === "all" ? undefined : statusFilter,
+    searchTerm
   );
   const deleteDrop = useDeleteDrop();
 
@@ -67,9 +95,18 @@ export function DropsList() {
 
   return (
     <div className="space-y-4">
-      {/* Filter */}
-      <div className="flex gap-3 items-center">
-        <span className="text-xs text-muted-foreground">Filter:</span>
+      {/* Search + Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search by filename or agent..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full bg-muted border border-border rounded pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors normal-case"
+          />
+        </div>
         <select
           value={statusFilter}
           onChange={(e) => {
@@ -87,7 +124,8 @@ export function DropsList() {
         </select>
       </div>
 
-      <div className="border border-border rounded overflow-hidden">
+      {/* Desktop Table */}
+      <div className="hidden md:block border border-border rounded overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50">
@@ -114,8 +152,11 @@ export function DropsList() {
                   {drop.originalFilename}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs ${statusColor(drop.status)}`}>
-                    {drop.status}
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className={`h-2 w-2 rounded-full ${statusDotColor(drop.status)}`} />
+                    <span className={`text-xs font-medium ${statusColor(drop.status)}`}>
+                      {drop.status}
+                    </span>
                   </span>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
@@ -133,7 +174,7 @@ export function DropsList() {
                   {drop.inviteCodeLabel}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground text-xs">
-                  {new Date(drop.expiresAt).toLocaleDateString()}
+                  {drop.expiresAt ? new Date(drop.expiresAt).toLocaleDateString() : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex gap-2 justify-end">
@@ -160,6 +201,45 @@ export function DropsList() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card Layout */}
+      <div className="md:hidden space-y-2">
+        {drops.length === 0 && (
+          <p className="text-center text-muted-foreground text-xs py-8">No drops found</p>
+        )}
+        {drops.map((drop) => (
+          <div key={drop.id} className="border border-border rounded p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className={`h-2 w-2 rounded-full shrink-0 ${statusDotColor(drop.status)}`} />
+                <span className="text-sm font-medium truncate normal-case">{drop.originalFilename}</span>
+              </div>
+              <div className="flex gap-1 shrink-0 ml-2">
+                {drop.status === DROP_STATUS.READY && (
+                  <a
+                    href={`/d/${drop.publicId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:text-primary/80 transition-colors p-1"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+                <button
+                  onClick={() => setDeleteId(drop.id)}
+                  className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>{drop.inviteCodeLabel}</span>
+              <span className={statusColor(drop.status)}>{drop.status}</span>
+            </div>
+          </div>
+        ))}
       </div>
 
       {meta && meta.totalPages > 1 && (
