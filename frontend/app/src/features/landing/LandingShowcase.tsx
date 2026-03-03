@@ -53,10 +53,10 @@ const FEATURES: { icon: LucideIcon; title: string; description: string }[] = [
 
 
 const SCREENSHOTS = [
-  { label: "Admin console", src: "/screenshots/admin-console.png", description: "Generate and manage invite keys, monitor active drops" },
-  { label: "Drop terminal", src: "/screenshots/drop-terminal.png", description: "Drag-and-drop upload with expiration and self-destruct settings" },
-  { label: "Transfer active", src: "/screenshots/transfer-active.png", description: "Resumable chunked upload with real-time progress" },
-  { label: "Secure node", src: "/screenshots/secure-node.png", description: "Password-protected download page with expiry countdown" },
+  { label: "Admin console", src: "/screenshots/list.png", description: "Generate and manage invite keys, monitor active drops" },
+  { label: "Drop terminal", src: "/screenshots/upload.png", description: "Drag-and-drop upload with expiration and self-destruct settings" },
+  { label: "Transfer active", src: "/screenshots/downloading.png", description: "Resumable chunked upload with real-time progress" },
+  { label: "Secure node", src: "/screenshots/download.png", description: "Password-protected download page with expiry countdown" },
 ];
 
 export function LandingShowcase() {
@@ -106,7 +106,7 @@ export function LandingShowcase() {
                 See how it works
               </a>
               <a
-                href="https://github.com"
+                href="https://github.com/CydoEntis/DeadDrop"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-6 py-3 text-xs font-medium border border-border rounded hover:bg-muted transition-colors"
@@ -175,16 +175,16 @@ export function LandingShowcase() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {SCREENSHOTS.map((screenshot) => (
                 <div key={screenshot.label} className="border border-border rounded overflow-hidden hover:border-primary/50 transition-colors">
-                  <div className="aspect-video bg-muted flex items-center justify-center">
+                  <div className="aspect-video bg-muted overflow-hidden">
                     <img
                       src={screenshot.src}
                       alt={screenshot.label}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-top"
                       loading="lazy"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = "none";
-                        target.parentElement!.innerHTML = `<span class="text-xs text-muted-foreground">${screenshot.label}</span>`;
+                        target.parentElement!.innerHTML = `<span class="text-xs text-muted-foreground flex items-center justify-center h-full">${screenshot.label}</span>`;
                       }}
                     />
                   </div>
