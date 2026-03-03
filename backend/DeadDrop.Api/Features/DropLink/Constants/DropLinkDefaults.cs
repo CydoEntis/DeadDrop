@@ -5,12 +5,8 @@ public static class DropLinkDefaults
     public const int PublicIdLength = 22;
     public const string FallbackMimeType = "application/octet-stream";
 
-    // TTL presets in seconds
-    public const int Ttl15Minutes = 900;
-    public const int Ttl1Hour = 3600;
-    public const int Ttl1Day = 86400;
-    public const int Ttl1Week = 604800;
-    public const int Ttl1Month = 2592000;
+    // Default TTL
+    public const int DefaultTtlSeconds = 604800; // 7 days
 
     // Global defaults
     public const long DefaultMaxStorageBytes = 2L * 1024 * 1024 * 1024 * 1024; // 2 TB

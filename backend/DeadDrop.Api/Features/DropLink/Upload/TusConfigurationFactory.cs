@@ -27,7 +27,7 @@ public static class TusConfigurationFactory
             {
                 UrlPath = "/api/droplink/uploads",
                 Store = new TusDiskStore(config.TusDir),
-                MaxAllowedUploadSizeInBytes = (int)Math.Min(config.MaxBytesPerDropDefault, int.MaxValue),
+                MaxAllowedUploadSizeInBytesLong = config.MaxBytesPerDropDefault,
                 Events = new Events
                 {
                     OnAuthorizeAsync = async eventContext =>
@@ -164,12 +164,13 @@ public static class TusConfigurationFactory
 
         var fileRecord = saveResult.Data;
 
-        // Update drop
+        // Update drop — start TTL now that upload is complete
         drop.StorageFileId = fileRecord.Id;
         drop.StoragePath = fileRecord.StoragePath;
         drop.SizeBytes = fileRecord.SizeBytes;
         drop.Status = DropStatus.Ready;
         drop.TusFileId = file.Id;
+        drop.ExpiresAt = DateTime.UtcNow.AddSeconds(drop.TtlSeconds);
 
         // Update invite usage
         drop.InviteCode.UsedTotalBytes += fileRecord.SizeBytes;

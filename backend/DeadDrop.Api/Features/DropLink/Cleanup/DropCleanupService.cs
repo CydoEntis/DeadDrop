@@ -50,9 +50,9 @@ public class DropCleanupService : BackgroundService
         var fileStorage = scope.ServiceProvider.GetRequiredService<IFileStorage>();
         var now = DateTime.UtcNow;
 
-        // 1. Expire drops past their TTL
+        // 1. Expire drops past their TTL (ExpiresAt is null while still uploading)
         var expiredDrops = await db.Drops
-            .Where(d => d.ExpiresAt < now && d.Status != DropStatus.Deleted && d.Status != DropStatus.Expired && d.Status != DropStatus.Failed)
+            .Where(d => d.ExpiresAt.HasValue && d.ExpiresAt < now && d.Status != DropStatus.Deleted && d.Status != DropStatus.Expired && d.Status != DropStatus.Failed)
             .ToListAsync(cancellationToken);
 
         foreach (var drop in expiredDrops)

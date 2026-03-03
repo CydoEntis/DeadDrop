@@ -6,7 +6,8 @@ public class Drop
     public string PublicId { get; set; } = string.Empty;
     public Guid InviteCodeId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime ExpiresAt { get; set; }
+    public int TtlSeconds { get; set; }
+    public DateTime? ExpiresAt { get; set; }
     public int DeleteAfterDownloads { get; set; } = 1;
     public int DownloadCount { get; set; }
 

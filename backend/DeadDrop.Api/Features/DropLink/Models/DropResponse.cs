@@ -7,7 +7,7 @@ public record DropMetadataResponse(
     string Status,
     string OriginalFilename,
     long? SizeBytes,
-    DateTime ExpiresAt,
+    DateTime? ExpiresAt,
     bool RequiresPassword,
     int DownloadCount,
     int DeleteAfterDownloads);
@@ -23,7 +23,7 @@ public record CreateDropRequest(
 public record CreateDropResponse(
     string PublicId,
     Guid DropId,
-    DateTime ExpiresAt,
+    int TtlSeconds,
     UploadInfo Upload);
 
 public record UploadInfo(
@@ -45,7 +45,7 @@ public record AdminDropResponse(
     string OriginalFilename,
     long? SizeBytes,
     DateTime CreatedAt,
-    DateTime ExpiresAt,
+    DateTime? ExpiresAt,
     int DownloadCount,
     int DeleteAfterDownloads,
     string InviteCodeLabel);

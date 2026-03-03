@@ -68,12 +68,12 @@ public class CreateDropHandler
         // Sanitize filename
         var safeFilename = SanitizeFilename(request.OriginalFilename);
 
-        // Create drop
+        // Create drop (ExpiresAt is set after upload completes in TusConfigurationFactory.OnFileComplete)
         var drop = new Drop
         {
             PublicId = PublicIdGenerator.Generate(),
             InviteCodeId = invite.Id,
-            ExpiresAt = DateTime.UtcNow.AddSeconds(request.TtlSeconds),
+            TtlSeconds = request.TtlSeconds,
             DeleteAfterDownloads = request.DeleteAfterDownloads,
             OriginalFilename = safeFilename,
             ContentType = request.ContentType ?? DropLinkDefaults.FallbackMimeType,
@@ -92,7 +92,7 @@ public class CreateDropHandler
         return new CreateDropResponse(
             PublicId: drop.PublicId,
             DropId: drop.Id,
-            ExpiresAt: drop.ExpiresAt,
+            TtlSeconds: drop.TtlSeconds,
             Upload: new UploadInfo(
                 Protocol: "tus",
                 Endpoint: "/api/droplink/uploads"));
