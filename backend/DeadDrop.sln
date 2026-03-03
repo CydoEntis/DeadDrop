@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PupDrive.Api", "PupDrive.Api\PupDrive.Api.csproj", "{BAD79F11-DFB1-4BD4-9E2A-B8042E83E11C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeadDrop.Api", "DeadDrop.Api\DeadDrop.csproj", "{BAD79F11-DFB1-4BD4-9E2A-B8042E83E11C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -132,11 +132,8 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
-// DEVELOPMENT ONLY: Seed database with test data
-if (app.Environment.IsDevelopment())
-{
-    await DbSeeder.SeedAsync(app.Services);
-}
+// Seed admin account on first run (safe — skips if admin already exists)
+await DbSeeder.SeedAsync(app.Services);
 
 // DEVELOPMENT ONLY: Enable Swagger UI at /swagger
 if (app.Environment.IsDevelopment())

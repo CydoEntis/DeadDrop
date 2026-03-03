@@ -17,7 +17,8 @@ public static class DbSeeder
         var adminEmail = config["Admin:Email"] ?? "admin@deaddrop.dev";
         var adminPassword = config["Admin:Password"] ?? "Admin123!";
 
-        if (!await context.Users.AnyAsync(u => u.Email == adminEmail))
+        var existingAdmin = await context.Users.FirstOrDefaultAsync(u => u.Email == adminEmail);
+        if (existingAdmin == null)
         {
             var admin = new User
             {
@@ -37,7 +38,14 @@ public static class DbSeeder
         }
         else
         {
-            logger.LogInformation("Admin account already exists, skipping seed");
+            // Update password if it changed in config
+            if (!BCrypt.Net.BCrypt.Verify(adminPassword, existingAdmin.PasswordHash))
+            {
+                existingAdmin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword);
+                existingAdmin.UpdatedAt = DateTime.UtcNow;
+                await context.SaveChangesAsync();
+                logger.LogInformation("Updated admin password for: {Email}", adminEmail);
+            }
         }
     }
 }
