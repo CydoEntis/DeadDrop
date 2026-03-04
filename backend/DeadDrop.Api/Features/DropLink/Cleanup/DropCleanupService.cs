@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using StashPup.Core.Interfaces;
 using DeadDrop.Domain.Entities.DropLink;
 using DeadDrop.Features.DropLink.Constants;
 using DeadDrop.Features.DropLink.Shared;
 using DeadDrop.Infrastructure.Data;
+using DeadDrop.Infrastructure.FileStorage;
 
 namespace DeadDrop.Features.DropLink.Cleanup;
 
@@ -47,10 +47,9 @@ public class DropCleanupService : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DropLinkDbContext>();
-        var fileStorage = scope.ServiceProvider.GetRequiredService<IFileStorage>();
+        var s3 = scope.ServiceProvider.GetRequiredService<S3DirectService>();
         var now = DateTime.UtcNow;
 
-        // 1. Expire drops past their TTL (ExpiresAt is null while still uploading)
         var expiredDrops = await db.Drops
             .Where(d => d.ExpiresAt.HasValue && d.ExpiresAt < now && d.Status != DropStatus.Deleted && d.Status != DropStatus.Expired && d.Status != DropStatus.Failed)
             .ToListAsync(cancellationToken);
@@ -59,10 +58,8 @@ public class DropCleanupService : BackgroundService
         {
             try
             {
-                if (drop.StorageFileId.HasValue)
-                {
-                    await fileStorage.DeleteAsync(drop.StorageFileId.Value, cancellationToken);
-                }
+                if (!string.IsNullOrEmpty(drop.StoragePath))
+                    await s3.DeleteObjectAsync(drop.StoragePath, cancellationToken);
 
                 drop.Status = DropStatus.Expired;
             }
@@ -78,7 +75,6 @@ public class DropCleanupService : BackgroundService
             _logger.LogInformation("Cleaned up {Count} expired drops", expiredDrops.Count);
         }
 
-        // 2. Clean up abandoned uploads (created > 24h ago, still in Created/Uploading)
         var abandonedCutoff = now.AddHours(-DropLinkDefaults.AbandonedUploadHours);
         var abandonedDrops = await db.Drops
             .Where(d => d.CreatedAt < abandonedCutoff && (d.Status == DropStatus.Created || d.Status == DropStatus.Uploading))
@@ -86,6 +82,18 @@ public class DropCleanupService : BackgroundService
 
         foreach (var drop in abandonedDrops)
         {
+            if (!string.IsNullOrEmpty(drop.StoragePath) && !string.IsNullOrEmpty(drop.S3UploadId))
+            {
+                try
+                {
+                    await s3.AbortMultipartUploadAsync(drop.StoragePath, drop.S3UploadId, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to abort multipart upload for abandoned drop {DropId}", drop.Id);
+                }
+            }
+
             drop.Status = DropStatus.Failed;
         }
 
@@ -95,7 +103,6 @@ public class DropCleanupService : BackgroundService
             _logger.LogInformation("Marked {Count} abandoned uploads as failed", abandonedDrops.Count);
         }
 
-        // 3. Clean up drops marked as Deleting (file deletion was attempted but may have failed)
         var deletingDrops = await db.Drops
             .Where(d => d.Status == DropStatus.Deleting)
             .ToListAsync(cancellationToken);
@@ -104,8 +111,8 @@ public class DropCleanupService : BackgroundService
         {
             try
             {
-                if (drop.StorageFileId.HasValue)
-                    await fileStorage.DeleteAsync(drop.StorageFileId.Value, cancellationToken);
+                if (!string.IsNullOrEmpty(drop.StoragePath))
+                    await s3.DeleteObjectAsync(drop.StoragePath, cancellationToken);
 
                 drop.Status = DropStatus.Deleted;
             }
@@ -121,7 +128,6 @@ public class DropCleanupService : BackgroundService
             _logger.LogInformation("Cleaned up {Count} deleting drops", deletingDrops.Count);
         }
 
-        // 4. Purge old download events
         var eventCutoff = now.AddDays(-DropLinkDefaults.DownloadEventRetentionDays);
         var purgedEvents = await db.DownloadEvents
             .Where(e => e.StartedAt < eventCutoff)
@@ -129,45 +135,5 @@ public class DropCleanupService : BackgroundService
 
         if (purgedEvents > 0)
             _logger.LogInformation("Purged {Count} old download events", purgedEvents);
-
-        // 5. Clean orphaned tus temp files (still local disk)
-        CleanOrphanedTusFiles();
-    }
-
-    private void CleanOrphanedTusFiles()
-    {
-        try
-        {
-            if (!Directory.Exists(_config.TusDir))
-                return;
-
-            var cutoff = DateTime.UtcNow.AddHours(-DropLinkDefaults.AbandonedUploadHours);
-            var files = Directory.GetFiles(_config.TusDir);
-
-            var cleaned = 0;
-            foreach (var file in files)
-            {
-                var fileInfo = new FileInfo(file);
-                if (fileInfo.LastWriteTimeUtc < cutoff)
-                {
-                    try
-                    {
-                        fileInfo.Delete();
-                        cleaned++;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to delete orphaned tus file {File}", file);
-                    }
-                }
-            }
-
-            if (cleaned > 0)
-                _logger.LogInformation("Cleaned {Count} orphaned tus temp files", cleaned);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error cleaning orphaned tus files");
-        }
     }
 }

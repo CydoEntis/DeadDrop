@@ -68,7 +68,7 @@ public class CreateDropHandler
         // Sanitize filename
         var safeFilename = SanitizeFilename(request.OriginalFilename);
 
-        // Create drop (ExpiresAt is set after upload completes in TusConfigurationFactory.OnFileComplete)
+        // Create drop (ExpiresAt is set after upload completes in CompleteUploadHandler)
         var drop = new Drop
         {
             PublicId = PublicIdGenerator.Generate(),
@@ -94,8 +94,8 @@ public class CreateDropHandler
             DropId: drop.Id,
             TtlSeconds: drop.TtlSeconds,
             Upload: new UploadInfo(
-                Protocol: "tus",
-                Endpoint: "/api/droplink/uploads"));
+                Protocol: "s3-multipart",
+                Endpoint: $"/api/droplink/drops/{drop.Id}/upload"));
     }
 
     private static string SanitizeFilename(string filename)

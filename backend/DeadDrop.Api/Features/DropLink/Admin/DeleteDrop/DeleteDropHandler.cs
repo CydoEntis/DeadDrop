@@ -1,21 +1,21 @@
 using ErrorHound.BuiltIn;
 using Microsoft.EntityFrameworkCore;
-using StashPup.Core.Interfaces;
 using DeadDrop.Features.DropLink.Constants;
 using DeadDrop.Infrastructure.Data;
+using DeadDrop.Infrastructure.FileStorage;
 
 namespace DeadDrop.Features.DropLink.Admin.DeleteDrop;
 
 public class DeleteDropHandler
 {
     private readonly DropLinkDbContext _db;
-    private readonly IFileStorage _fileStorage;
+    private readonly S3DirectService _s3;
     private readonly ILogger<DeleteDropHandler> _logger;
 
-    public DeleteDropHandler(DropLinkDbContext db, IFileStorage fileStorage, ILogger<DeleteDropHandler> logger)
+    public DeleteDropHandler(DropLinkDbContext db, S3DirectService s3, ILogger<DeleteDropHandler> logger)
     {
         _db = db;
-        _fileStorage = fileStorage;
+        _s3 = s3;
         _logger = logger;
     }
 
@@ -28,11 +28,11 @@ public class DeleteDropHandler
         if (drop is null)
             throw new NotFoundError(DropLinkErrorMessages.DropNotFound);
 
-        if (drop.StorageFileId.HasValue)
+        if (!string.IsNullOrEmpty(drop.StoragePath))
         {
             try
             {
-                await _fileStorage.DeleteAsync(drop.StorageFileId.Value);
+                await _s3.DeleteObjectAsync(drop.StoragePath);
             }
             catch (Exception ex)
             {

@@ -1,10 +1,9 @@
 using ErrorHound.BuiltIn;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using StashPup.Core.Interfaces;
 using DeadDrop.Domain.Entities.DropLink;
 using DeadDrop.Features.DropLink.Constants;
 using DeadDrop.Infrastructure.Data;
+using DeadDrop.Infrastructure.FileStorage;
 using IResult = Microsoft.AspNetCore.Http.IResult;
 
 namespace DeadDrop.Features.DropLink.Download;
@@ -13,20 +12,19 @@ public class DownloadDropHandler
 {
     private readonly DropLinkDbContext _db;
     private readonly DownloadTokenStore _tokenStore;
-    private readonly IFileStorage _fileStorage;
+    private readonly S3DirectService _s3;
     private readonly ILogger<DownloadDropHandler> _logger;
 
-    public DownloadDropHandler(DropLinkDbContext db, DownloadTokenStore tokenStore, IFileStorage fileStorage, ILogger<DownloadDropHandler> logger)
+    public DownloadDropHandler(DropLinkDbContext db, DownloadTokenStore tokenStore, S3DirectService s3, ILogger<DownloadDropHandler> logger)
     {
         _db = db;
         _tokenStore = tokenStore;
-        _fileStorage = fileStorage;
+        _s3 = s3;
         _logger = logger;
     }
 
     public async Task<IResult> ExecuteAsync(string publicId, string token, HttpContext context)
     {
-        // Validate download token
         var validatedPublicId = _tokenStore.ValidateToken(token);
         if (validatedPublicId is null || validatedPublicId != publicId)
             throw new BadRequestError(DropLinkErrorMessages.InvalidDownloadToken);
@@ -46,21 +44,18 @@ public class DownloadDropHandler
         if (drop.DeleteAfterDownloads > 0 && drop.DownloadCount >= drop.DeleteAfterDownloads)
             throw new NotFoundError(DropLinkErrorMessages.DownloadLimitReached);
 
-        // Verify file exists in S3
-        if (!drop.StorageFileId.HasValue)
+        if (string.IsNullOrEmpty(drop.StoragePath))
         {
-            _logger.LogError("Drop {PublicId} has no StorageFileId", publicId);
+            _logger.LogError("Drop {PublicId} has no StoragePath", publicId);
             throw new NotFoundError(DropLinkErrorMessages.DropNotFound);
         }
 
-        var existsResult = await _fileStorage.ExistsAsync(drop.StorageFileId.Value);
-        if (!existsResult.Success || !existsResult.Data)
+        if (!await _s3.ObjectExistsAsync(drop.StoragePath))
         {
-            _logger.LogError("Drop file not found in S3: {StorageFileId} for drop {PublicId}", drop.StorageFileId, publicId);
+            _logger.LogError("Drop file not found in S3: {StoragePath} for drop {PublicId}", drop.StoragePath, publicId);
             throw new NotFoundError(DropLinkErrorMessages.DropNotFound);
         }
 
-        // Record download event start
         var downloadEvent = new DownloadEvent
         {
             DropId = drop.Id,
@@ -70,13 +65,11 @@ public class DownloadDropHandler
         _db.DownloadEvents.Add(downloadEvent);
         await _db.SaveChangesAsync();
 
-        // Sanitize filename for Content-Disposition
         var safeFilename = drop.OriginalFilename
             .Replace("\"", "")
             .Replace("\r", "")
             .Replace("\n", "");
 
-        // Set response headers
         context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{safeFilename}\"";
         context.Response.Headers["X-Content-Type-Options"] = "nosniff";
         context.Response.ContentType = drop.ContentType;
@@ -84,15 +77,7 @@ public class DownloadDropHandler
         if (drop.SizeBytes.HasValue)
             context.Response.ContentLength = drop.SizeBytes.Value;
 
-        // Stream file from S3
-        var streamResult = await _fileStorage.GetAsync(drop.StorageFileId.Value);
-        if (!streamResult.Success)
-        {
-            _logger.LogError("Failed to get drop file from S3: {Error}", streamResult.ErrorMessage);
-            throw new NotFoundError(DropLinkErrorMessages.DropNotFound);
-        }
-
-        var fileStream = streamResult.Data;
+        var fileStream = await _s3.GetObjectStreamAsync(drop.StoragePath);
         var cancellationToken = context.RequestAborted;
 
         try
@@ -100,25 +85,23 @@ public class DownloadDropHandler
             await fileStream.CopyToAsync(context.Response.Body, 81920, cancellationToken);
             await context.Response.Body.FlushAsync(cancellationToken);
 
-            // Download completed successfully
             downloadEvent.CompletedAt = DateTime.UtcNow;
             downloadEvent.BytesSent = drop.SizeBytes ?? 0;
             downloadEvent.WasSuccess = true;
 
             drop.DownloadCount++;
 
-            // Check if we should delete
             if (drop.DeleteAfterDownloads > 0 && drop.DownloadCount >= drop.DeleteAfterDownloads)
             {
                 try
                 {
-                    await _fileStorage.DeleteAsync(drop.StorageFileId.Value);
+                    await _s3.DeleteObjectAsync(drop.StoragePath);
                     drop.Status = DropStatus.Deleted;
                     _logger.LogInformation("Drop {PublicId} auto-deleted after {Count} downloads", publicId, drop.DownloadCount);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to delete drop file from S3: {StorageFileId}", drop.StorageFileId);
+                    _logger.LogError(ex, "Failed to delete drop file from S3: {StoragePath}", drop.StoragePath);
                     drop.Status = DropStatus.Deleting;
                 }
             }
@@ -127,7 +110,6 @@ public class DownloadDropHandler
         }
         catch (OperationCanceledException)
         {
-            // Client disconnected — do NOT count as successful
             downloadEvent.CompletedAt = DateTime.UtcNow;
             downloadEvent.WasSuccess = false;
             await _db.SaveChangesAsync();
