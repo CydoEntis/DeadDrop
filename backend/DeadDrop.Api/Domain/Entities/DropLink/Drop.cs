@@ -22,8 +22,9 @@ public class Drop
     // Password
     public string? PasswordHash { get; set; }
 
-    // tus upload tracking
+    // S3 multipart upload tracking (column name kept as TusFileId for backward compat)
     public string? TusFileId { get; set; }
+    public string? S3UploadId { get => TusFileId; set => TusFileId = value; }
 
     // Navigation
     public DropLinkInviteCode InviteCode { get; set; } = null!;

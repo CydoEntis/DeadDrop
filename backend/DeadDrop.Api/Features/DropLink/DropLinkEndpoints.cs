@@ -2,6 +2,7 @@ using DeadDrop.Features.DropLink.VerifyInvite;
 using DeadDrop.Features.DropLink.CreateDrop;
 using DeadDrop.Features.DropLink.GetDropMetadata;
 using DeadDrop.Features.DropLink.Download;
+using DeadDrop.Features.DropLink.Upload;
 using DeadDrop.Features.DropLink.Admin.CreateInviteCode;
 using DeadDrop.Features.DropLink.Admin.ListInviteCodes;
 using DeadDrop.Features.DropLink.Admin.RevokeInviteCode;
@@ -26,6 +27,15 @@ public static class DropLinkEndpoints
         GetDropMetadataEndpoint.Map(publicGroup);
         AuthorizeDownloadEndpoint.Map(publicGroup);
         DownloadDropEndpoint.Map(publicGroup);
+
+        var dropsGroup = app.MapGroup("/api/droplink/drops")
+            .AllowAnonymous()
+            .WithTags("DropLink Upload");
+
+        InitiateUploadEndpoint.Map(dropsGroup);
+        PresignPartsEndpoint.Map(dropsGroup);
+        CompleteUploadEndpoint.Map(dropsGroup);
+        AbortUploadEndpoint.Map(dropsGroup);
 
         // Admin endpoints (require Pawthorize admin auth)
         var adminGroup = app.MapGroup("/api/droplink/admin")
