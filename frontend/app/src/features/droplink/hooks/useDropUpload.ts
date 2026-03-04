@@ -1,44 +1,60 @@
 import { useState, useCallback, useRef } from "react";
-import * as tus from "tus-js-client";
 import type { CreateDropResponse } from "../types";
+import { dropLinkService } from "../services";
 
-function parseTusError(err: Error): string {
-  const msg = err.message || "";
-
-  // 413 — file too large
-  if (msg.includes("413"))
-    return "File exceeds the maximum allowed size. Try a smaller file.";
-
-  // Server rejected with a reason in the response text
-  if (msg.includes("exceeded") || msg.includes("too large") || msg.includes("UploadTooLarge"))
-    return "File exceeds the maximum allowed size. Try a smaller file.";
-  if (msg.includes("storage limit") || msg.includes("StorageLimitReached"))
-    return "This invite code has reached its storage limit.";
-  if (msg.includes("disk space"))
-    return "Server is out of disk space. Contact the operator.";
-  if (msg.includes("revoked"))
-    return "This invite code has been revoked.";
-  if (msg.includes("not found") || msg.includes("NotFound"))
-    return "Drop not found. The link may have expired.";
-  if (msg.includes("not in a valid state"))
-    return "This drop is no longer accepting uploads.";
-
-  // Network errors
-  if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("ERR_CONNECTION"))
-    return "Network error. Check your connection and try again.";
-  if (msg.includes("timeout") || msg.includes("Timeout"))
-    return "Upload timed out. Check your connection and try again.";
-
-  // Fallback — strip the TUS protocol noise
-  if (msg.includes("tus:"))
-    return "Upload failed. Please try again.";
-
-  return msg || "Upload failed";
-}
+const CONCURRENT_UPLOADS = 3;
+const PRESIGN_BATCH_SIZE = 10;
 
 interface UseDropUploadOptions {
   onComplete?: () => void;
   onError?: (error: Error) => void;
+}
+
+interface PartResult {
+  partNumber: number;
+  eTag: string;
+}
+
+interface PartJob {
+  partNumber: number;
+  url: string;
+}
+
+function uploadPartXHR(
+  url: string,
+  chunk: Blob,
+  onProgress: (loaded: number) => void,
+  signal: AbortSignal
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded);
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const eTag = xhr.getResponseHeader("ETag");
+        if (!eTag) {
+          reject(new Error("No ETag in part upload response"));
+          return;
+        }
+        resolve(eTag);
+      } else {
+        reject(new Error(`Part upload failed with status ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Network error during part upload"));
+    xhr.onabort = () => reject(new Error("Upload aborted"));
+
+    const abortHandler = () => xhr.abort();
+    signal.addEventListener("abort", abortHandler, { once: true });
+
+    xhr.send(chunk);
+  });
 }
 
 export function useDropUpload(options?: UseDropUploadOptions) {
@@ -47,85 +63,212 @@ export function useDropUpload(options?: UseDropUploadOptions) {
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadSpeed, setUploadSpeed] = useState<number>(0);
-  const uploadRef = useRef<tus.Upload | null>(null);
-  const lastProgressRef = useRef<{ bytes: number; time: number } | null>(null);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isPausedRef = useRef(false);
+  const resumeResolverRef = useRef<(() => void) | null>(null);
+  const uploadStateRef = useRef<{
+    dropId: string;
+    uploadId: string;
+    file: File;
+    partSize: number;
+    completedParts: PartResult[];
+    totalParts: number;
+    completedBytes: number;
+    inflightBytes: number[];
+  } | null>(null);
+
+  const handleError = useCallback(
+    (err: unknown) => {
+      const message = err instanceof Error ? err.message : "Upload failed";
+
+      if (message.includes("aborted") || message.includes("AbortError")) return;
+
+      let friendly = message;
+      if (message.includes("413") || message.includes("too large"))
+        friendly = "File exceeds the maximum allowed size.";
+      else if (message.includes("storage limit"))
+        friendly = "This invite code has reached its storage limit.";
+      else if (message.includes("revoked"))
+        friendly = "This invite code has been revoked.";
+      else if (message.includes("Failed to fetch") || message.includes("NetworkError") || message.includes("Network error"))
+        friendly = "Network error. Check your connection and try again.";
+      else if (message.includes("timeout"))
+        friendly = "Upload timed out. Check your connection and try again.";
+
+      setIsUploading(false);
+      setError(friendly);
+      options?.onError?.(new Error(friendly));
+    },
+    [options]
+  );
+
+  const waitIfPaused = useCallback((): Promise<void> => {
+    if (!isPausedRef.current) return Promise.resolve();
+    return new Promise((resolve) => {
+      resumeResolverRef.current = resolve;
+    });
+  }, []);
+
+  const updateProgress = useCallback((state: NonNullable<typeof uploadStateRef.current>) => {
+    const totalSent = state.completedBytes + state.inflightBytes.reduce((a, b) => a + b, 0);
+    const pct = Math.min(Math.round((totalSent / state.file.size) * 100), 99);
+    setProgress(pct);
+  }, []);
 
   const startUpload = useCallback(
-    (file: File, dropResponse: CreateDropResponse) => {
-      const baseUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:5135";
-      const endpoint = `${baseUrl}${dropResponse.upload.endpoint}`;
-
+    async (file: File, dropResponse: CreateDropResponse) => {
       setIsUploading(true);
       setIsComplete(false);
       setError(null);
       setProgress(0);
       setUploadSpeed(0);
-      lastProgressRef.current = { bytes: 0, time: Date.now() };
+      isPausedRef.current = false;
 
-      const upload = new tus.Upload(file, {
-        endpoint,
-        retryDelays: [0, 1000, 3000, 5000, 10000],
-        chunkSize: 5 * 1024 * 1024, // 5 MB chunks
-        metadata: {
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      try {
+        const { uploadId, partSize } = await dropLinkService.initiateUpload(
+          dropResponse.dropId
+        );
+
+        const totalParts = Math.ceil(file.size / partSize);
+
+        const state = {
           dropId: dropResponse.dropId,
-          filename: file.name,
-          filetype: file.type || "application/octet-stream",
-        },
-        onProgress: (bytesUploaded: number, bytesTotal: number) => {
-          const pct = Math.round((bytesUploaded / bytesTotal) * 100);
-          setProgress(pct);
+          uploadId,
+          file,
+          partSize,
+          completedParts: [] as PartResult[],
+          totalParts,
+          completedBytes: 0,
+          inflightBytes: new Array(CONCURRENT_UPLOADS).fill(0),
+        };
+        uploadStateRef.current = state;
 
-          // Calculate speed
-          if (lastProgressRef.current) {
-            const elapsed = (Date.now() - lastProgressRef.current.time) / 1000;
-            if (elapsed > 0.5) {
-              const bytesDiff =
-                bytesUploaded - lastProgressRef.current.bytes;
-              setUploadSpeed(bytesDiff / elapsed);
-              lastProgressRef.current = {
-                bytes: bytesUploaded,
-                time: Date.now(),
-              };
-            }
+        // Presign all parts in batches
+        const allJobs: PartJob[] = [];
+        const allPartNumbers = Array.from({ length: totalParts }, (_, i) => i + 1);
+
+        for (let i = 0; i < allPartNumbers.length; i += PRESIGN_BATCH_SIZE) {
+          if (abortController.signal.aborted) return;
+
+          const batch = allPartNumbers.slice(i, i + PRESIGN_BATCH_SIZE);
+          const { parts } = await dropLinkService.presignParts(
+            state.dropId,
+            state.uploadId,
+            batch
+          );
+          for (const p of parts) {
+            allJobs.push({ partNumber: p.partNumber, url: p.url });
           }
-        },
-        onSuccess: () => {
-          setIsUploading(false);
-          setIsComplete(true);
-          setProgress(100);
-          options?.onComplete?.();
-        },
-        onError: (err: Error) => {
-          setIsUploading(false);
-          const friendly = parseTusError(err);
-          setError(friendly);
-          options?.onError?.(new Error(friendly));
-        },
-      });
+        }
 
-      uploadRef.current = upload;
-      upload.start();
+        let jobIndex = 0;
+        let speedStartTime = Date.now();
+        let speedStartBytes = 0;
+
+        const worker = async (workerIndex: number): Promise<void> => {
+          while (jobIndex < allJobs.length) {
+            if (abortController.signal.aborted) return;
+            await waitIfPaused();
+
+            const idx = jobIndex++;
+            if (idx >= allJobs.length) return;
+
+            const job = allJobs[idx];
+            const start = (job.partNumber - 1) * state.partSize;
+            const end = Math.min(start + state.partSize, file.size);
+            const chunk = file.slice(start, end);
+
+            state.inflightBytes[workerIndex] = 0;
+
+            const eTag = await uploadPartXHR(
+              job.url,
+              chunk,
+              (loaded) => {
+                state.inflightBytes[workerIndex] = loaded;
+                updateProgress(state);
+
+                const now = Date.now();
+                const elapsed = (now - speedStartTime) / 1000;
+                if (elapsed > 1) {
+                  const totalSent = state.completedBytes + state.inflightBytes.reduce((a, b) => a + b, 0);
+                  const bytesDiff = totalSent - speedStartBytes;
+                  setUploadSpeed(bytesDiff / elapsed);
+                  speedStartTime = now;
+                  speedStartBytes = totalSent;
+                }
+              },
+              abortController.signal
+            );
+
+            state.completedParts.push({ partNumber: job.partNumber, eTag });
+            state.completedBytes += chunk.size;
+            state.inflightBytes[workerIndex] = 0;
+            updateProgress(state);
+          }
+        };
+
+        await Promise.all(
+          Array.from({ length: CONCURRENT_UPLOADS }, (_, i) => worker(i))
+        );
+
+        if (abortController.signal.aborted) return;
+
+        state.completedParts.sort((a, b) => a.partNumber - b.partNumber);
+        await dropLinkService.completeUpload(
+          state.dropId,
+          state.uploadId,
+          state.completedParts
+        );
+
+        setProgress(100);
+        setIsUploading(false);
+        setIsComplete(true);
+        options?.onComplete?.();
+      } catch (err) {
+        handleError(err);
+      }
     },
-    [options]
+    [options, handleError, waitIfPaused, updateProgress]
   );
 
   const pause = useCallback(() => {
-    uploadRef.current?.abort();
+    isPausedRef.current = true;
     setIsUploading(false);
   }, []);
 
   const resume = useCallback(() => {
-    if (uploadRef.current) {
-      setIsUploading(true);
-      setError(null);
-      uploadRef.current.start();
+    isPausedRef.current = false;
+    setIsUploading(true);
+    setError(null);
+    if (resumeResolverRef.current) {
+      resumeResolverRef.current();
+      resumeResolverRef.current = null;
     }
   }, []);
 
-  const abort = useCallback(() => {
-    uploadRef.current?.abort();
-    uploadRef.current = null;
+  const abort = useCallback(async () => {
+    abortControllerRef.current?.abort();
+    isPausedRef.current = false;
+
+    if (resumeResolverRef.current) {
+      resumeResolverRef.current();
+      resumeResolverRef.current = null;
+    }
+
+    const state = uploadStateRef.current;
+    if (state?.uploadId) {
+      try {
+        await dropLinkService.abortUpload(state.dropId, state.uploadId);
+      } catch {
+        // best effort
+      }
+    }
+
+    uploadStateRef.current = null;
     setIsUploading(false);
     setProgress(0);
     setError(null);

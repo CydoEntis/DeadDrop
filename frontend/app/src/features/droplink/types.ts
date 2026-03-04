@@ -30,6 +30,21 @@ export interface CreateDropResponse {
   };
 }
 
+export interface InitiateUploadResponse {
+  uploadId: string;
+  key: string;
+  partSize: number;
+}
+
+export interface PresignedPart {
+  partNumber: number;
+  url: string;
+}
+
+export interface PresignPartsResponse {
+  parts: PresignedPart[];
+}
+
 export interface DropMetadataResponse {
   publicId: string;
   status: string;

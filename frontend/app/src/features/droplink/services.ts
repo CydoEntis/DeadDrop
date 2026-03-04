@@ -11,6 +11,8 @@ import type {
   AdminDropResponse,
   DropLinkStatsResponse,
   PaginatedResponse,
+  InitiateUploadResponse,
+  PresignPartsResponse,
 } from "./types";
 
 const prefix = "/api/droplink";
@@ -49,6 +51,32 @@ export const dropLinkService = {
     const baseUrl =
       import.meta.env.VITE_API_URL || "http://localhost:5135";
     return `${baseUrl}${prefix}/drops/${publicId}/download?token=${encodeURIComponent(token)}`;
+  },
+
+  async initiateUpload(dropId: string): Promise<InitiateUploadResponse> {
+    const response = await apiClient.post(`${prefix}/drops/${dropId}/upload/init`);
+    return response.data.data ?? response.data;
+  },
+
+  async presignParts(dropId: string, uploadId: string, partNumbers: number[]): Promise<PresignPartsResponse> {
+    const response = await apiClient.post(`${prefix}/drops/${dropId}/upload/presign`, {
+      uploadId,
+      partNumbers,
+    });
+    return response.data.data ?? response.data;
+  },
+
+  async completeUpload(dropId: string, uploadId: string, parts: { partNumber: number; eTag: string }[]): Promise<void> {
+    await apiClient.post(`${prefix}/drops/${dropId}/upload/complete`, {
+      uploadId,
+      parts,
+    });
+  },
+
+  async abortUpload(dropId: string, uploadId: string): Promise<void> {
+    await apiClient.post(`${prefix}/drops/${dropId}/upload/abort`, {
+      uploadId,
+    });
   },
 };
 

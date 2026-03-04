@@ -40,7 +40,6 @@ export function UploadProgress({
       </div>
 
       <div className="border border-border rounded p-6 space-y-5">
-        {/* File info */}
         <div className="space-y-1">
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">File</span>
@@ -52,18 +51,17 @@ export function UploadProgress({
           </div>
         </div>
 
-        {/* Progress bar */}
         <div className="space-y-2">
           <div className="h-2 w-full overflow-hidden rounded-sm bg-muted">
             <div
-              className="h-full bg-primary transition-all duration-300"
+              className="h-full transition-all duration-300 bg-primary"
               style={{ width: `${progress}%` }}
             />
           </div>
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>
               <span className="text-foreground font-medium">{progress}%</span>
-              {isUploading && " — receiving"}
+              {isUploading && " — uploading"}
             </span>
             {isUploading && speed > 0 && (
               <span>{formatSpeed(speed)}</span>
