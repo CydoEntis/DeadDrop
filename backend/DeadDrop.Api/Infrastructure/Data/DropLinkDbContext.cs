@@ -64,6 +64,8 @@ public class DropLinkDbContext : DbContext
                 .HasConversion<string>()
                 .HasMaxLength(20);
 
+            entity.Ignore(e => e.S3UploadId);
+
             entity.HasOne(e => e.InviteCode)
                 .WithMany(i => i.Drops)
                 .HasForeignKey(e => e.InviteCodeId)

@@ -4,7 +4,6 @@ namespace DeadDrop.Features.DropLink.Shared;
 
 public class DropLinkConfig
 {
-    public string TusDir { get; set; } = "./droplink-data/tus";
     public long MaxStorageBytes { get; set; } = DropLinkDefaults.DefaultMaxStorageBytes;
     public long MinFreeDiskBytes { get; set; } = DropLinkDefaults.DefaultMinFreeDiskBytes;
     public long MaxBytesPerDropDefault { get; set; } = DropLinkDefaults.DefaultMaxBytesPerDrop;

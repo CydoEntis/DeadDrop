@@ -5,6 +5,7 @@ using DeadDrop.Domain.Entities;
 using DeadDrop.Infrastructure.Auth;
 using DeadDrop.Infrastructure.FileStorage;
 using DeadDrop.Features.DropLink.Download;
+using DeadDrop.Features.DropLink.Upload;
 using DeadDrop.Features.DropLink.Shared;
 using DeadDrop.Features.DropLink.VerifyInvite;
 using DeadDrop.Features.DropLink.CreateDrop;
@@ -62,6 +63,10 @@ public static class DependencyInjection
         services.AddScoped<GetStatsHandler>();
         services.AddScoped<ListDropsHandler>();
         services.AddScoped<DeleteDropHandler>();
+        services.AddScoped<InitiateUploadHandler>();
+        services.AddScoped<PresignPartsHandler>();
+        services.AddScoped<CompleteUploadHandler>();
+        services.AddScoped<AbortUploadHandler>();
 
         return services;
     }

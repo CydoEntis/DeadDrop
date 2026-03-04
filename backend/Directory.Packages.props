@@ -37,6 +37,6 @@
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="8.0.21" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <!-- DropLink -->
-    <PackageVersion Include="tusdotnet" Version="2.9.0" />
+    <PackageVersion Include="AWSSDK.S3" Version="3.7.500" />
   </ItemGroup>
 </Project>

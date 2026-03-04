@@ -3,6 +3,7 @@ using Pawthorize.Endpoints.Register;
 using Pawthorize.Services;
 using DeadDrop.Domain.Entities;
 using DeadDrop.Infrastructure.Auth;
+using DeadDrop.Infrastructure.FileStorage;
 
 namespace DeadDrop.Infrastructure;
 
@@ -13,6 +14,8 @@ public static class DependencyInjection
         services.AddScoped<IUserFactory<User, RegisterRequest>, UserFactory>();
         services.AddScoped<IEmailSender, NoOpEmailSender>();
         services.AddScoped<IEmailTemplateProvider, NoOpEmailTemplateProvider>();
+
+        services.AddSingleton<S3DirectService>();
 
         return services;
     }
