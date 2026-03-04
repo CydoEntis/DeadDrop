@@ -40,9 +40,7 @@ using SuccessHound.AspNetExtensions;
 using StashPup.AspNetCore.Extensions;
 using DeadDrop.Features.DropLink;
 using DeadDrop.Features.DropLink.Cleanup;
-using DeadDrop.Features.DropLink.Upload;
-using tusdotnet;
-using tusdotnet.Models;
+using DeadDrop.Infrastructure.FileStorage;
 using Microsoft.AspNetCore.RateLimiting;
 
 
@@ -80,7 +78,7 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials()
-              .WithExposedHeaders("X-XSRF-TOKEN", "Upload-Offset", "Upload-Length", "Tus-Resumable", "Location");
+              .WithExposedHeaders("X-XSRF-TOKEN");
     });
 });
 
@@ -115,8 +113,19 @@ builder.Services.AddPawthorize<User>(options =>
     options.UseDefaultFormatters();
 });
 
-// FILE STORAGE: StashPup for file storage abstraction
-builder.Services.AddStashPup(builder.Configuration);
+var s3Config = builder.Configuration.GetSection("StashPup:S3");
+builder.Services.AddStashPup(stash => stash
+    .UseS3(options =>
+    {
+        options.BucketName = s3Config["BucketName"] ?? "deaddrop";
+        options.Region = s3Config["Region"] ?? "garage";
+        options.ServiceUrl = s3Config["ServiceUrl"] ?? "";
+        options.ForcePathStyle = s3Config.GetValue<bool>("ForcePathStyle", true);
+        options.AccessKeyId = s3Config["AccessKeyId"] ?? "";
+        options.SecretAccessKey = s3Config["SecretAccessKey"] ?? "";
+        options.EnableEncryption = s3Config.GetValue<bool>("EnableEncryption", false);
+        options.MaxFileSizeBytes = null;
+    }));
 
 // API RESPONSE FORMATTING: SuccessHound for consistent responses
 builder.Services.AddSuccessHound(options =>
@@ -134,6 +143,18 @@ var app = builder.Build();
 
 // Seed admin account on first run (safe — skips if admin already exists)
 await DbSeeder.SeedAsync(app.Services);
+
+// Configure S3 bucket CORS so browsers can PUT directly to Garage
+var s3Service = app.Services.GetRequiredService<S3DirectService>();
+try
+{
+    await s3Service.ConfigureBucketCorsAsync(allowedOrigins);
+    Log.Information("S3 bucket CORS configured for {Origins}", string.Join(", ", allowedOrigins));
+}
+catch (Exception ex)
+{
+    Log.Warning(ex, "Failed to configure S3 bucket CORS — direct uploads may fail");
+}
 
 // DEVELOPMENT ONLY: Enable Swagger UI at /swagger
 if (app.Environment.IsDevelopment())
@@ -156,16 +177,6 @@ if (builder.Configuration.GetValue<string>("StashPup:Provider") == "Local")
 app.UseCors("AllowFrontend");
 
 app.UseRateLimiter();
-
-// DROPLINK: tus resumable upload middleware (runs before Pawthorize to avoid CSRF on chunked uploads)
-app.UseTus(async httpContext =>
-{
-    if (!httpContext.Request.Path.StartsWithSegments("/api/droplink/uploads"))
-        return null;
-
-    var factory = TusConfigurationFactory.CreateConfiguration(app.Services);
-    return await factory(httpContext);
-});
 
 app.UseSuccessHound();
 
