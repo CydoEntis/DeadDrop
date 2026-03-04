@@ -3,7 +3,6 @@ import type { CreateDropResponse } from "../types";
 import { dropLinkService } from "../services";
 
 const CONCURRENT_UPLOADS = 3;
-const PRESIGN_BATCH_SIZE = 10;
 
 interface UseDropUploadOptions {
   onComplete?: () => void;
@@ -13,11 +12,6 @@ interface UseDropUploadOptions {
 interface PartResult {
   partNumber: number;
   eTag: string;
-}
-
-interface PartJob {
-  partNumber: number;
-  url: string;
 }
 
 function uploadPartXHR(
@@ -63,6 +57,7 @@ export function useDropUpload(options?: UseDropUploadOptions) {
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadSpeed, setUploadSpeed] = useState<number>(0);
+  const [eta, setEta] = useState<number | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const isPausedRef = useRef(false);
@@ -123,6 +118,7 @@ export function useDropUpload(options?: UseDropUploadOptions) {
       setError(null);
       setProgress(0);
       setUploadSpeed(0);
+      setEta(null);
       isPausedRef.current = false;
 
       const abortController = new AbortController();
@@ -147,45 +143,35 @@ export function useDropUpload(options?: UseDropUploadOptions) {
         };
         uploadStateRef.current = state;
 
-        // Presign all parts in batches
-        const allJobs: PartJob[] = [];
-        const allPartNumbers = Array.from({ length: totalParts }, (_, i) => i + 1);
-
-        for (let i = 0; i < allPartNumbers.length; i += PRESIGN_BATCH_SIZE) {
-          if (abortController.signal.aborted) return;
-
-          const batch = allPartNumbers.slice(i, i + PRESIGN_BATCH_SIZE);
-          const { parts } = await dropLinkService.presignParts(
-            state.dropId,
-            state.uploadId,
-            batch
-          );
-          for (const p of parts) {
-            allJobs.push({ partNumber: p.partNumber, url: p.url });
-          }
-        }
-
-        let jobIndex = 0;
+        // Shared queue of part numbers — workers pull from this
+        let nextPart = 1;
         let speedStartTime = Date.now();
         let speedStartBytes = 0;
 
         const worker = async (workerIndex: number): Promise<void> => {
-          while (jobIndex < allJobs.length) {
+          while (nextPart <= totalParts) {
             if (abortController.signal.aborted) return;
             await waitIfPaused();
 
-            const idx = jobIndex++;
-            if (idx >= allJobs.length) return;
+            const partNumber = nextPart++;
+            if (partNumber > totalParts) return;
 
-            const job = allJobs[idx];
-            const start = (job.partNumber - 1) * state.partSize;
+            // Presign just-in-time so URLs are always fresh
+            const { parts } = await dropLinkService.presignParts(
+              state.dropId,
+              state.uploadId,
+              [partNumber]
+            );
+            const url = parts[0].url;
+
+            const start = (partNumber - 1) * state.partSize;
             const end = Math.min(start + state.partSize, file.size);
             const chunk = file.slice(start, end);
 
             state.inflightBytes[workerIndex] = 0;
 
             const eTag = await uploadPartXHR(
-              job.url,
+              url,
               chunk,
               (loaded) => {
                 state.inflightBytes[workerIndex] = loaded;
@@ -196,7 +182,12 @@ export function useDropUpload(options?: UseDropUploadOptions) {
                 if (elapsed > 1) {
                   const totalSent = state.completedBytes + state.inflightBytes.reduce((a, b) => a + b, 0);
                   const bytesDiff = totalSent - speedStartBytes;
-                  setUploadSpeed(bytesDiff / elapsed);
+                  const speed = bytesDiff / elapsed;
+                  setUploadSpeed(speed);
+                  if (speed > 0) {
+                    const remaining = file.size - totalSent;
+                    setEta(Math.ceil(remaining / speed));
+                  }
                   speedStartTime = now;
                   speedStartBytes = totalSent;
                 }
@@ -204,7 +195,7 @@ export function useDropUpload(options?: UseDropUploadOptions) {
               abortController.signal
             );
 
-            state.completedParts.push({ partNumber: job.partNumber, eTag });
+            state.completedParts.push({ partNumber, eTag });
             state.completedBytes += chunk.size;
             state.inflightBytes[workerIndex] = 0;
             updateProgress(state);
@@ -281,6 +272,7 @@ export function useDropUpload(options?: UseDropUploadOptions) {
     isComplete,
     error,
     uploadSpeed,
+    eta,
     startUpload,
     pause,
     resume,

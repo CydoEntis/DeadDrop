@@ -5,6 +5,7 @@ interface UploadProgressProps {
   fileSize: number;
   progress: number;
   speed: number;
+  eta: number | null;
   error: string | null;
   isUploading: boolean;
   onPause: () => void;
@@ -24,11 +25,24 @@ function formatSpeed(bytesPerSecond: number): string {
   return `${formatBytes(bytesPerSecond)}/s`;
 }
 
+function formatEta(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 export function UploadProgress({
   filename,
   fileSize,
   progress,
   speed,
+  eta,
   error,
   isUploading,
   onAbort,
@@ -64,7 +78,10 @@ export function UploadProgress({
               {isUploading && " — uploading"}
             </span>
             {isUploading && speed > 0 && (
-              <span>{formatSpeed(speed)}</span>
+              <span>
+                {formatSpeed(speed)}
+                {eta !== null && ` — ${formatEta(eta)} remaining`}
+              </span>
             )}
           </div>
         </div>

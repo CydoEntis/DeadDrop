@@ -120,6 +120,7 @@ export function DropUploadForm({
         fileSize={file?.size ?? 0}
         progress={upload.progress}
         speed={upload.uploadSpeed}
+        eta={upload.eta}
         error={upload.error}
         isUploading={upload.isUploading}
         onPause={upload.pause}
